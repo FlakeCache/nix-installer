@@ -1,0 +1,81 @@
+name: 'Install Nix'
+description: 'Install Nix - works on GitHub-hosted, self-hosted, and inside containers'
+author: 'FlakeCache'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  extra-conf:
+    description: 'Extra nix.conf configuration lines'
+    required: false
+    default: ''
+  nix-version:
+    description: 'Nix version to install (only used when installing, ignored in containers)'
+    required: false
+    default: 'latest'
+
+outputs:
+  nix-path:
+    description: 'Path to Nix binary'
+    value: ${{ steps.check.outputs.nix-path }}
+  already-installed:
+    description: 'Whether Nix was already installed'
+    value: ${{ steps.check.outputs.installed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check if Nix already installed
+      id: check
+      shell: bash
+      run: |
+        if command -v nix &> /dev/null; then
+          echo "installed=true" >> $GITHUB_OUTPUT
+          echo "nix-path=$(which nix)" >> $GITHUB_OUTPUT
+          echo "✅ Nix already available (container mode)"
+          nix --version
+        else
+          echo "installed=false" >> $GITHUB_OUTPUT
+          echo "📦 Nix not found, will install"
+        fi
+
+    - name: Install Nix
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      run: |
+        echo "🔧 Installing Nix..."
+        curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+
+        # Add to path for subsequent steps
+        if [ -e /nix/var/nix/profiles/default/bin ]; then
+          echo "/nix/var/nix/profiles/default/bin" >> $GITHUB_PATH
+        fi
+        if [ -e "$HOME/.nix-profile/bin" ]; then
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+        fi
+
+        # Source for current step
+        [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+
+        echo "nix-path=$(which nix)" >> $GITHUB_OUTPUT
+        echo "✅ Nix installed"
+        nix --version
+
+    - name: Configure Nix
+      shell: bash
+      run: |
+        mkdir -p ~/.config/nix
+
+        # Base config with flakes enabled
+        cat > ~/.config/nix/nix.conf << 'EOF'
+        experimental-features = nix-command flakes
+        accept-flake-config = true
+        EOF
+
+        # Add extra config if provided
+        if [ -n "${{ inputs.extra-conf }}" ]; then
+          echo "${{ inputs.extra-conf }}" >> ~/.config/nix/nix.conf
+        fi
+
+        echo "✅ Nix configured with flakes enabled"
