@@ -83,6 +83,8 @@ jobs:
 | Input | Description | Default |
 |-------|-------------|---------|
 | `flakecache` | Enable FlakeCache binary cache | `true` |
+| `install-cli` | Install FlakeCache CLI for push/pull | `false` |
+| `cli-version` | FlakeCache CLI version | `latest` |
 | `extra-substituters` | Additional binary cache URLs (space-separated) | `''` |
 | `extra-trusted-keys` | Additional trusted public keys (space-separated) | `''` |
 | `extra-conf` | Extra lines to add to nix.conf | `''` |
@@ -93,6 +95,7 @@ jobs:
 |--------|-------------|
 | `nix-path` | Path to the Nix binary |
 | `already-installed` | `true` if Nix was already installed (container mode) |
+| `cli-path` | Path to FlakeCache CLI (if installed) |
 
 ## Binary Caches
 
@@ -102,6 +105,24 @@ By default, this action configures:
 |-------|-----|----------|
 | **FlakeCache** | `https://c.flakecache.com` | 1st (fastest) |
 | **NixOS** | `https://cache.nixos.org` | 2nd (fallback) |
+
+## Push to Cache (with CLI)
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FlakeCache/nix-installer@v1
+        with:
+          install-cli: 'true'
+      - run: nix build
+      - name: Push to FlakeCache
+        run: flakecache push ./result
+        env:
+          FLAKECACHE_TOKEN: ${{ secrets.FLAKECACHE_TOKEN }}
+```
 
 ## How It Works
 

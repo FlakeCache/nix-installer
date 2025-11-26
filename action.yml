@@ -14,6 +14,14 @@ inputs:
     description: 'Enable FlakeCache binary cache (true/false)'
     required: false
     default: 'true'
+  install-cli:
+    description: 'Install FlakeCache CLI for push/pull operations'
+    required: false
+    default: 'false'
+  cli-version:
+    description: 'FlakeCache CLI version (default: latest)'
+    required: false
+    default: 'latest'
   extra-substituters:
     description: 'Additional binary cache URLs (space-separated)'
     required: false
@@ -30,6 +38,9 @@ outputs:
   already-installed:
     description: 'Whether Nix was already installed'
     value: ${{ steps.check.outputs.installed }}
+  cli-path:
+    description: 'Path to FlakeCache CLI (if installed)'
+    value: ${{ steps.install-cli.outputs.cli-path }}
 
 runs:
   using: 'composite'
@@ -113,3 +124,51 @@ runs:
 
         echo "✅ Nix configured with flakes enabled"
         echo "📦 Substituters: $SUBSTITUTERS"
+
+    - name: Install FlakeCache CLI
+      id: install-cli
+      if: inputs.install-cli == 'true'
+      shell: bash
+      run: |
+        echo "🔧 Installing FlakeCache CLI..."
+
+        # Detect platform
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+
+        case "$OS" in
+          linux)  PLATFORM="linux" ;;
+          darwin) PLATFORM="macos" ;;
+          *)      echo "❌ Unsupported OS: $OS"; exit 1 ;;
+        esac
+
+        case "$ARCH" in
+          x86_64)  ARCH="x86_64" ;;
+          aarch64|arm64) ARCH="aarch64" ;;
+          *)       echo "❌ Unsupported arch: $ARCH"; exit 1 ;;
+        esac
+
+        BINARY="flakecache-${PLATFORM}-${ARCH}"
+
+        # Get version
+        VERSION="${{ inputs.cli-version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -sL https://api.github.com/repos/singularity-ng/flakecache/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+        fi
+
+        echo "📥 Downloading FlakeCache CLI $VERSION ($BINARY)..."
+
+        # Download from GitHub releases
+        DOWNLOAD_URL="https://github.com/singularity-ng/flakecache/releases/download/${VERSION}/${BINARY}"
+
+        curl -sL "$DOWNLOAD_URL" -o /tmp/flakecache || {
+          echo "⚠️ Failed to download FlakeCache CLI (may not be available yet)"
+          echo "cli-path=" >> $GITHUB_OUTPUT
+          exit 0
+        }
+
+        chmod +x /tmp/flakecache
+        sudo mv /tmp/flakecache /usr/local/bin/flakecache
+
+        echo "cli-path=/usr/local/bin/flakecache" >> $GITHUB_OUTPUT
+        echo "✅ FlakeCache CLI installed: $(flakecache --version 2>/dev/null || echo $VERSION)"
