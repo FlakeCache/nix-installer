@@ -100,7 +100,7 @@ By default, this action configures:
 
 | Cache | URL | Priority |
 |-------|-----|----------|
-| **FlakeCache** | `https://cache.flakecache.dev` | 1st (fastest) |
+| **FlakeCache** | `https://c.flakecache.com` | 1st (fastest) |
 | **NixOS** | `https://cache.nixos.org` | 2nd (fallback) |
 
 ## How It Works

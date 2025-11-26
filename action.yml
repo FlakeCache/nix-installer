@@ -81,8 +81,8 @@ runs:
 
         # Add FlakeCache if enabled
         if [ "${{ inputs.flakecache }}" = "true" ]; then
-          SUBSTITUTERS="https://cache.flakecache.dev $SUBSTITUTERS"
-          TRUSTED_KEYS="cache.flakecache.dev-1:WbJFKuGbfVpBRT8FyqLrJ+EvGL6YdUrqgyj+X/FVy0I= $TRUSTED_KEYS"
+          SUBSTITUTERS="https://c.flakecache.com $SUBSTITUTERS"
+          TRUSTED_KEYS="c.flakecache.com-1:WbJFKuGbfVpBRT8FyqLrJ+EvGL6YdUrqgyj+X/FVy0I= $TRUSTED_KEYS"
           echo "📦 FlakeCache binary cache enabled"
         fi
 
@@ -102,6 +102,8 @@ runs:
         accept-flake-config = true
         substituters = $SUBSTITUTERS
         trusted-public-keys = $TRUSTED_KEYS
+        fallback = true
+        connect-timeout = 5
         EOF
 
         # Add extra config if provided
