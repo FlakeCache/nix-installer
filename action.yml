@@ -10,10 +10,18 @@ inputs:
     description: 'Extra nix.conf configuration lines'
     required: false
     default: ''
-  nix-version:
-    description: 'Nix version to install (only used when installing, ignored in containers)'
+  flakecache:
+    description: 'Enable FlakeCache binary cache (true/false)'
     required: false
-    default: 'latest'
+    default: 'true'
+  extra-substituters:
+    description: 'Additional binary cache URLs (space-separated)'
+    required: false
+    default: ''
+  extra-trusted-keys:
+    description: 'Additional trusted public keys (space-separated)'
+    required: false
+    default: ''
 
 outputs:
   nix-path:
@@ -67,10 +75,33 @@ runs:
       run: |
         mkdir -p ~/.config/nix
 
-        # Base config with flakes enabled
-        cat > ~/.config/nix/nix.conf << 'EOF'
+        # Build substituters list
+        SUBSTITUTERS="https://cache.nixos.org"
+        TRUSTED_KEYS="cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+
+        # Add FlakeCache if enabled
+        if [ "${{ inputs.flakecache }}" = "true" ]; then
+          SUBSTITUTERS="https://cache.flakecache.dev $SUBSTITUTERS"
+          TRUSTED_KEYS="cache.flakecache.dev-1:WbJFKuGbfVpBRT8FyqLrJ+EvGL6YdUrqgyj+X/FVy0I= $TRUSTED_KEYS"
+          echo "📦 FlakeCache binary cache enabled"
+        fi
+
+        # Add extra substituters
+        if [ -n "${{ inputs.extra-substituters }}" ]; then
+          SUBSTITUTERS="${{ inputs.extra-substituters }} $SUBSTITUTERS"
+        fi
+
+        # Add extra trusted keys
+        if [ -n "${{ inputs.extra-trusted-keys }}" ]; then
+          TRUSTED_KEYS="${{ inputs.extra-trusted-keys }} $TRUSTED_KEYS"
+        fi
+
+        # Write config
+        cat > ~/.config/nix/nix.conf << EOF
         experimental-features = nix-command flakes
         accept-flake-config = true
+        substituters = $SUBSTITUTERS
+        trusted-public-keys = $TRUSTED_KEYS
         EOF
 
         # Add extra config if provided
@@ -79,3 +110,4 @@ runs:
         fi
 
         echo "✅ Nix configured with flakes enabled"
+        echo "📦 Substituters: $SUBSTITUTERS"
