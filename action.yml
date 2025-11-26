@@ -153,13 +153,13 @@ runs:
         # Get version
         VERSION="${{ inputs.cli-version }}"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(curl -sL https://api.github.com/repos/singularity-ng/flakecache/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          VERSION=$(curl -sL https://api.github.com/repos/FlakeCache/cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
         fi
 
         echo "📥 Downloading FlakeCache CLI $VERSION ($BINARY)..."
 
         # Download from GitHub releases
-        DOWNLOAD_URL="https://github.com/singularity-ng/flakecache/releases/download/${VERSION}/${BINARY}"
+        DOWNLOAD_URL="https://github.com/FlakeCache/cli/releases/download/${VERSION}/${BINARY}"
 
         curl -sL "$DOWNLOAD_URL" -o /tmp/flakecache || {
           echo "⚠️ Failed to download FlakeCache CLI (may not be available yet)"
