@@ -1,5 +1,5 @@
-name: 'Install Nix'
-description: 'Install Nix - works on GitHub-hosted, self-hosted, and inside containers'
+name: 'FlakeCache Nix Installer'
+description: 'Install Nix with FlakeCache binary cache - works on GitHub-hosted, self-hosted, and containers'
 author: 'FlakeCache'
 branding:
   icon: 'package'
