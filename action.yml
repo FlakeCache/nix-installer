@@ -49,11 +49,23 @@ runs:
       id: check
       shell: bash
       run: |
+        # Check multiple locations for Nix
+        NIX_PATH=""
         if command -v nix &> /dev/null; then
+          NIX_PATH="$(which nix)"
+        elif [ -x /nix/var/nix/profiles/default/bin/nix ]; then
+          NIX_PATH="/nix/var/nix/profiles/default/bin/nix"
+          echo "/nix/var/nix/profiles/default/bin" >> $GITHUB_PATH
+        elif [ -x "$HOME/.nix-profile/bin/nix" ]; then
+          NIX_PATH="$HOME/.nix-profile/bin/nix"
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+        fi
+
+        if [ -n "$NIX_PATH" ]; then
           echo "installed=true" >> $GITHUB_OUTPUT
-          echo "nix-path=$(which nix)" >> $GITHUB_OUTPUT
-          echo "✅ Nix already available (container mode)"
-          nix --version
+          echo "nix-path=$NIX_PATH" >> $GITHUB_OUTPUT
+          echo "✅ Nix already available at $NIX_PATH"
+          "$NIX_PATH" --version
         else
           echo "installed=false" >> $GITHUB_OUTPUT
           echo "📦 Nix not found, will install"
