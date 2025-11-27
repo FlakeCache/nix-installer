@@ -8,53 +8,9 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-linux
-            artifact: flakecache-action-linux-x86_64
-          - os: ubuntu-latest
-            target: aarch64-linux
-            artifact: flakecache-action-linux-aarch64
-          - os: macos-latest
-            target: x86_64-darwin
-            artifact: flakecache-action-macos-x86_64
-          - os: macos-latest
-            target: aarch64-darwin
-            artifact: flakecache-action-macos-aarch64
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: FlakeCache/nix-installer@v1
-
-      - name: Build with Nix
-        run: |
-          nix build .#packages.${{ matrix.target }}.default
-          cp result/bin/flakecache-action ${{ matrix.artifact }}
-          chmod +x ${{ matrix.artifact }}
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: ${{ matrix.artifact }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
-
   release:
-    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -62,16 +18,9 @@ jobs:
         with:
           path: nix-installer
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
           generate_release_notes: true
 
       - uses: actions/checkout@v4
@@ -80,19 +29,17 @@ jobs:
           token: ${{ secrets.FLAKECACHE_TOKEN }}
           path: releases
 
-      - name: Copy binaries and action.yml to internal action repo
+      - name: Copy action.yml to internal action repo
         run: |
-          mkdir -p releases/dist
-          cp artifacts/* releases/dist/
           cp nix-installer/action.yml releases/action.yml
-          ls -la releases/dist/
+          ls -la releases/
 
       - name: Commit and push to internal action repo
         run: |
           cd releases
           git config user.name "FlakeCache Bot"
           git config user.email "bot@flakecache.com"
-          git add dist/ action.yml
+          git add action.yml
           git commit -m "Update action from nix-installer ${{ github.ref_name }}" || echo "No changes"
           git push origin main
 
