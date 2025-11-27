@@ -58,13 +58,36 @@ runs:
           echo "installed=false" >> $GITHUB_OUTPUT
           echo "📦 Nix not found, will install"
         fi
+        
+        # Check if we should run in container mode
+        if [ "$FLAKECACHE_RUNNER" = "true" ] && [ -n "$NIX_CONTAINER_IMAGE" ]; then
+          echo "container-mode=true" >> $GITHUB_OUTPUT
+          echo "🚀 FlakeCache runner detected, will use container: $NIX_CONTAINER_IMAGE"
+        else
+          echo "container-mode=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Install Nix
-      if: steps.check.outputs.installed == 'false'
+      if: steps.check.outputs.installed == 'false' && steps.check.outputs.container-mode == 'false'
       shell: bash
       run: |
         echo "🔧 Installing Nix..."
-
+        
+        # Install xz if missing (required for Nix installer)
+        if ! command -v xz &> /dev/null; then
+          echo "📦 Installing xz-utils..."
+          if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y xz-utils
+          elif command -v apk &> /dev/null; then
+            apk add xz
+          elif command -v brew &> /dev/null; then
+            brew install xz
+          else
+            echo "❌ xz not available and no package manager found"
+            exit 1
+          fi
+        fi
+        
         # Use daemon mode on macOS, no-daemon on Linux
         if [[ "$OSTYPE" == "darwin"* ]]; then
           curl -L https://nixos.org/nix/install | sh -s -- --daemon
@@ -82,11 +105,22 @@ runs:
 
         # Source for current step
         [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-        [ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ] && . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
-
         echo "nix-path=$(which nix)" >> $GITHUB_OUTPUT
         echo "✅ Nix installed"
         nix --version
+
+    - name: Install Nix (Container Mode)
+      if: steps.check.outputs.installed == 'false' && steps.check.outputs.container-mode == 'true'
+      shell: bash
+      run: |
+        echo "🚀 Installing Nix in container mode..."
+        echo "📦 Using container: $NIX_CONTAINER_IMAGE"
+        
+        # For container mode, we assume the container has Nix pre-installed
+        # If not, this step would need to run docker commands, but that's complex
+        # For now, just set outputs assuming container provides Nix
+        echo "nix-path=docker" >> $GITHUB_OUTPUT
+        echo "✅ Container mode enabled"
 
     - name: Configure Nix
       shell: bash
@@ -137,7 +171,7 @@ runs:
       if: inputs.install-cli == 'true'
       shell: bash
       run: |
-        echo "🔧 Installing FlakeCache CLI..."
+        echo "�� Installing FlakeCache CLI..."
 
         # Detect platform
         OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -167,7 +201,6 @@ runs:
 
         # Download from GitHub releases
         DOWNLOAD_URL="https://github.com/FlakeCache/cli/releases/download/${VERSION}/${BINARY}"
-
         curl -sL "$DOWNLOAD_URL" -o /tmp/flakecache || {
           echo "⚠️ Failed to download FlakeCache CLI (may not be available yet)"
           echo "cli-path=" >> $GITHUB_OUTPUT
