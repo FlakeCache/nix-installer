@@ -103,11 +103,20 @@ runs:
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
         fi
 
-        # Source for current step
-        [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-        echo "nix-path=$(which nix)" >> $GITHUB_OUTPUT
-        echo "✅ Nix installed"
-        nix --version
+        # Source for current step and verify
+        if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+          . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+        fi
+
+        NIX_PATH="${HOME}/.nix-profile/bin/nix"
+        if [ -x "$NIX_PATH" ]; then
+          echo "nix-path=$NIX_PATH" >> $GITHUB_OUTPUT
+          echo "✅ Nix installed"
+          "$NIX_PATH" --version
+        else
+          echo "❌ Nix binary not found at expected path"
+          exit 1
+        fi
 
     - name: Install Nix (Container Mode)
       if: steps.check.outputs.installed == 'false' && steps.check.outputs.container-mode == 'true'
