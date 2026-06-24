@@ -1,6 +1,6 @@
-name: 'flakecache Nix Installer'
+name: 'FlakeCache Nix Installer'
 description: 'Install Nix with FlakeCache binary cache - works on GitHub-hosted, self-hosted, and containers'
-author: 'flakecache'
+author: 'FlakeCache'
 branding:
   icon: 'package'
   color: 'blue'
